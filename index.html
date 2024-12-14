@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch My Hearts</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #ffe6f2, #ff99c8);
+            text-align: center;
+            color: #ff4081;
+        }
+        h1 {
+            margin: 20px 0;
+            font-size: 2rem;
+            color: #ff006e;
+        }
+        #counter {
+            font-size: 1.2rem;
+            color: #d6336c;
+            margin-bottom: 10px;
+        }
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 64, 129, 0.9);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            font-size: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        #gameCanvas {
+            display: block;
+            background: #fff0f5;
+            border: 5px solid #ffb3c6;
+            margin: auto;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Achieve 20 points to reveal the message!</h1>
+    <div id="counter">Points: 0</div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div id="messageBox">
+        <p id="message"></p>
+        <small>(Tap anywhere to continue)</small>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('message');
+
+        // Constants
+        const BASKET_WIDTH = 50;
+        const BASKET_HEIGHT = 20;
+        const CANVAS_WIDTH = canvas.width;
+        const CANVAS_HEIGHT = canvas.height;
+
+        // Basket
+        const basket = {
+            x: CANVAS_WIDTH / 2 - BASKET_WIDTH / 2,
+            y: CANVAS_HEIGHT - 50,
+            width: BASKET_WIDTH,
+            height: BASKET_HEIGHT,
+            color: '#ff5e78',
+            speed: 6,
+            moveLeft: false,
+            moveRight: false
+        };
+
+        // Hearts
+        const hearts = [];
+        let heartSpeed = 2;
+
+        // Score
+        let score = 0;
+
+        // Messages
+        const messages = [
+            { score: 5, text: "Oye Dumbo" },
+            { score: 10, text: "Mahan Insan" },
+            { score: 15, text: "You are one of the best things that ever happened to me" },
+            { score: 20, text: "You got all my heart (ab tera reply: kaam kar raha hu)" }
+        ];
+
+        let isPaused = false;
+
+        // Functions
+        function spawnHeart() {
+            const heart = {
+                x: Math.random() * (CANVAS_WIDTH - 20),
+                y: 0,
+                radius: 10,
+                color: '#ff4081'
+            };
+            hearts.push(heart);
+        }
+
+        function drawBasket() {
+            ctx.fillStyle = basket.color;
+            ctx.fillRect(basket.x, basket.y, basket.width, basket.height);
+        }
+
+        function drawHearts() {
+            hearts.forEach(heart => {
+                ctx.beginPath();
+                ctx.arc(heart.x, heart.y, heart.radius, 0, Math.PI * 2);
+                ctx.fillStyle = heart.color;
+                ctx.fill();
+            });
+        }
+
+        function moveHearts() {
+            hearts.forEach((heart, index) => {
+                heart.y += heartSpeed;
+                if (heart.y > CANVAS_HEIGHT) hearts.splice(index, 1);
+
+                // Collision detection
+                if (
+                    heart.x > basket.x &&
+                    heart.x < basket.x + basket.width &&
+                    heart.y > basket.y &&
+                    heart.y < basket.y + basket.height
+                ) {
+                    hearts.splice(index, 1);
+                    score++;
+                    updateScore();
+                    checkMessage();
+                    if (score % 5 === 0) heartSpeed += 0.5;
+                }
+            });
+        }
+
+        function updateScore() {
+            document.getElementById('counter').textContent = `Points: ${score}`;
+        }
+
+        function checkMessage() {
+            const specialMessage = messages.find(msg => msg.score === score);
+            if (specialMessage) pauseGame(specialMessage.text);
+        }
+
+        function pauseGame(message) {
+            isPaused = true;
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        function resumeGame() {
+            isPaused = false;
+            messageBox.style.display = 'none';
+        }
+
+        function moveBasket() {
+            if (basket.moveLeft && basket.x > 0) basket.x -= basket.speed;
+            if (basket.moveRight && basket.x + basket.width < CANVAS_WIDTH) basket.x += basket.speed;
+        }
+
+        function gameLoop() {
+            if (!isPaused) {
+                ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                drawBasket();
+                drawHearts();
+                moveHearts();
+                moveBasket();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Add touch controls for mobile
+        canvas.addEventListener('touchstart', e => {
+            const touchX = e.touches[0].clientX - canvas.offsetLeft;
+            if (touchX < basket.x) basket.moveLeft = true;
+            if (touchX > basket.x + basket.width) basket.moveRight = true;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            basket.moveLeft = false;
+            basket.moveRight = false;
+        });
+
+        // Keyboard controls for desktop
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') basket.moveLeft = true;
+            if (e.key === 'ArrowRight') basket.moveRight = true;
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.key === 'ArrowLeft') basket.moveLeft = false;
+            if (e.key === 'ArrowRight') basket.moveRight = false;
+        });
+
+        // Resume Game on Tap
+        window.addEventListener('click', () => {
+            if (isPaused) resumeGame();
+        });
+
+        // Start game
+        setInterval(spawnHeart, 1000);
+        gameLoop();
+    </script>
+</body>
+</html>
